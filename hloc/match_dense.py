@@ -47,7 +47,8 @@ confs = {
         'preprocessing': {
             'grayscale': True,
             'resize_max': 1024,
-            'dfactor': 8
+            'dfactor': 8,
+            'force_resize': True,
         },
         'max_error': 1,  # max error for assigned keypoints (in px)
         'cell_size': 1,  # size of quantization patch (max 1 kp/patch)
@@ -81,6 +82,36 @@ confs = {
         },
         'max_error': 4,  # max error for assigned keypoints (in px)
         'cell_size': 4,  # size of quantization patch (max 1 kp/patch)
+    },
+    # Use topicfm for matching feats    
+    'topicfm': {
+        'output': 'matches-topicfm',
+        'model': {
+            'name': 'topicfm',
+            'weights': 'outdoor'
+        },
+        'preprocessing': {
+            'grayscale': True,
+            'force_resize': True,
+            'resize_max': 1024,
+            'dfactor': 8,
+            'width': 640,
+            'height': 480,
+        },
+    },
+    # Use topicfm for matching feats    
+    'aspanformer': {
+        'output': 'matches-aspanformer',
+        'model': {
+            'name': 'aspanformer',
+            'weights': 'outdoor'
+        },
+        'preprocessing': {
+            'grayscale': True,
+            'force_resize': True,
+            'resize_max': 1024,
+            'dfactor': 8
+        },
     },
 }
 
@@ -244,6 +275,68 @@ class ImagePairDataset(torch.utils.data.Dataset):
             image1, scale1 = self.preprocess(image1)
         return image0, image1, scale0, scale1, name0, name1
 
+def match(model, path_0, path_1, conf):
+    default_conf = {
+        'grayscale': True,
+        'resize_max': 1024,
+        'dfactor': 8,
+        'cache_images': False,
+        'force_resize': False,
+        'width': 320,
+        'height': 240,
+    }
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    def preprocess(image: np.ndarray):
+        image = image.astype(np.float32, copy=False)
+        size = image.shape[:2][::-1]
+        scale = np.array([1.0, 1.0])
+        if conf.resize_max:
+            scale = conf.resize_max / max(size)
+            if scale < 1.0:
+                size_new = tuple(int(round(x*scale)) for x in size)
+                image = resize_image(image, size_new, 'cv2_area')
+                scale = np.array(size) / np.array(size_new)
+        if conf.force_resize:
+            image = resize_image(image, (conf.width, conf.height), 'cv2_area')
+            size = image.shape[:2][::-1]
+            size_new = (conf.width, conf.height)
+            scale = np.array(size) / np.array(size_new)
+        if conf.grayscale:
+            assert image.ndim == 2, image.shape
+            image = image[None]
+        else:
+            image = image.transpose((2, 0, 1))  # HxWxC to CxHxW
+        image = torch.from_numpy(image / 255.0).float()
+        # assure that the size is divisible by dfactor
+        size_new = tuple(map(
+                lambda x: int(x // conf.dfactor * conf.dfactor),
+                image.shape[-2:]))
+        image = F.resize(image, size=size_new)
+        scale = np.array(size) / np.array(size_new)[::-1]
+        return image, scale
+    conf = SimpleNamespace(**{**default_conf, **conf})
+    image0 = read_image(path_0, conf.grayscale)
+    image1 = read_image(path_1, conf.grayscale)
+    image0, scale0 = preprocess(image0)
+    image1, scale1 = preprocess(image1)
+    image0 = image0.to(device)[None]
+    image1 = image1.to(device)[None]
+    pred = model({'image0': image0, 'image1': image1})
+    
+    # Rescale keypoints and move to cpu
+    kpts0, kpts1 = pred['keypoints0'], pred['keypoints1']
+    kpts0 = scale_keypoints(kpts0 + 0.5, scale0) - 0.5
+    kpts1 = scale_keypoints(kpts1 + 0.5, scale1) - 0.5
+
+    ret = {
+        'image0': image0.squeeze().cpu().numpy(),
+        'image1': image1.squeeze().cpu().numpy(),
+        'keypoints0': kpts0.cpu().numpy(),
+        'keypoints1': kpts1.cpu().numpy(),
+    }
+    if 'mconf' in pred.keys():
+        ret['mconf'] = pred['mconf'].cpu().numpy()
+    return ret
 
 @torch.no_grad()
 def match_dense(conf: Dict,
