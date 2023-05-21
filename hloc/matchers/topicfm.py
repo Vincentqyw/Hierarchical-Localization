@@ -25,8 +25,6 @@ class TopicFM(BaseModel):
         _conf['match_coarse']['thr'] = conf['match_threshold']
         _conf['coarse']['n_samples'] = conf['n_sampling_topics']
         weight_path =  topicfm_path / 'pretrained/model_best.ckpt'
-
-        print("model config: ", _conf)
         self.net = _TopicFM(config=_conf)
         ckpt_dict = torch.load(weight_path, map_location='cpu')
         self.net.load_state_dict(ckpt_dict['state_dict'])
@@ -35,11 +33,12 @@ class TopicFM(BaseModel):
         data_ = {'image0': data['image0'],
                  'image1': data['image1'],}
         self.net(data_)
-        mkpts0 = data_['mkpts0_f'].cpu().numpy()  # [vis_range[0]:vis_range[1]]
-        mkpts1 = data_['mkpts1_f'].cpu().numpy()  # [vis_range[0]:vis_range[1]]
-        mconf = data_['mconf'].cpu().numpy()  # [vis_range[0]:vis_range[1]]
+        mkpts0 = data_['mkpts0_f']
+        mkpts1 = data_['mkpts1_f']
+        mconf = data_['mconf']
         total_n_matches = len(data_['mkpts0_f'])
 
         pred = {}
         pred['keypoints0'], pred['keypoints1'] = mkpts0, mkpts1
+        pred['mconf'] = mconf
         return pred

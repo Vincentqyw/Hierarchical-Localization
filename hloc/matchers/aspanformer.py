@@ -33,7 +33,8 @@ class ASpanFormer(BaseModel):
         data_ = {'image0': data['image0'],
                  'image1': data['image1'],}
         self.net(data_,online_resize=True)
-        corr0, corr1 = data['mkpts0_f'].cpu().numpy(),data['mkpts1_f'].cpu().numpy()
+        corr0 = data_['mkpts0_f']
+        corr1 = data_['mkpts1_f']
         pred = {}
         pred['keypoints0'], pred['keypoints1'] = corr0, corr1
         return pred
