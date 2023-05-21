@@ -10,3 +10,6 @@ h5py
 pycolmap>=0.3.0
 kornia>=0.6.7
 gdown
+yacs
+einops
+loguru
