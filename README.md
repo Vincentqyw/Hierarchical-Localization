@@ -30,6 +30,14 @@ cd Hierarchical-Localization/
 python -m pip install -e .
 ```
 
+or clone first and pull submodules:
+``` bash
+git clone https://github.com/cvg/Hierarchical-Localization/
+git submodule update --init --recursive
+python -m pip install -e .
+# sudo apt-get update && sudo apt-get install libgl1
+```
+
 All dependencies are listed in `requirements.txt`. **Starting with `hloc-v1.3`, installing COLMAP is not required anymore.** This repository includes external local features as git submodules – don't forget to pull submodules with `git submodule update --init --recursive`.
 
 We also provide a Docker image:
