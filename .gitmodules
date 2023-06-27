@@ -22,3 +22,6 @@
 [submodule "third_party/TopicFM"]
 	path = third_party/TopicFM
 	url = https://github.com/Vincentqyw/TopicFM
+[submodule "third_party/LightGlue"]
+	path = third_party/LightGlue
+	url = https://github.com/cvg/LightGlue.git

@@ -95,8 +95,8 @@ confs = {
             'force_resize': True,
             'resize_max': 1024,
             'dfactor': 8,
-            'width': 640,
-            'height': 480,
+            'width': 320,
+            'height': 240,
         },
     },
     # Use topicfm for matching feats    

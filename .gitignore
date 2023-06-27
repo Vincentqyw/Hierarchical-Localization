@@ -7,3 +7,4 @@ third_party/netvlad
 datasets/*
 !datasets/sacre_coeur/
 .vscode/
+match.png
